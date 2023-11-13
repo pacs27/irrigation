@@ -21,6 +21,7 @@ ee.Initialize()
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__))))
 from etmodels.test.time_controller import TimeController
 from collection import Collection
+from meteorology import retrievePrecip
 
 # FOLDERS
 
@@ -50,6 +51,8 @@ class TimeSeries:
         
         self.start_date = str(datetime.date(year_i, month_i, day_i))
         self.end_date = str(datetime.date(year_e, month_e, day_e))
+        _date=ee.Date(self.start_date)
+        date_string=_date.format('YYYY-MM-dd')
 
         self.collections = [
             "LANDSAT/LC09/C02/T1_L2",
@@ -96,6 +99,9 @@ class TimeSeries:
             rain = point_value.get("rain")
             land_surface_temperature = point_value.get("lst")
             
+            precip = retrievePrecip(date_string, self.coordinate, scale=None)
+
+            
             etFeature = ee.Feature(
                 self.test_point.centroid(),
                 {
@@ -112,7 +118,8 @@ class TimeSeries:
                     "actual_vapor_pressure": actual_vapor_pressure,
                     "solar_radiation": solar_radiation,
                     "wind_speed": wind_speed,
-                    "precip": rain,
+                    "precip": precip,
+                    "rain": rain, # TODO: this is today's rain from the same collection used for ET. Maybe is not needed but it is here for now 
                 },
             )
 
