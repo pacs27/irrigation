@@ -217,13 +217,14 @@ def extractMonthlyData(aoi,
 
 def buildImageCollection(aoi, start, end, max_cloud=10, ls5=False, ls7=False, ls_all=False):
     # always returns LS8 by default
-    cropmask = msk.createGFSADmask(aoi)
+    # cropmask = msk.createGFSADmask(aoi)
     def getImages(dataset):
         return ee.ImageCollection(dataset) \
-                  .filterDate(start, end) \
-                  .filter(ee.Filter.lt('CLOUD_COVER', max_cloud)) \
-                  .map(lambda x: x.updateMask(cropmask)) \
-                  .filterBounds(aoi)
+                    .filterDate(start, end) \
+                    .filter(ee.Filter.lt('CLOUD_COVER', max_cloud)) \
+                    .filterBounds(aoi)
+                #   .map(lambda x: x.updateMask(cropmask)) \
+                  
 
     imgcol8 = getImages('LANDSAT/LC08/C01/T1_SR')
     imgcol7 = getImages('LANDSAT/LE07/C01/T1_SR')

@@ -40,7 +40,12 @@ def baseETtransforms(df):
     # Split .geo into latitude and longitude columns
     df['longitude'] = df['.geo'].apply(lambda x: json.loads(x)['coordinates'][0])
     df['latitude'] = df['.geo'].apply(lambda x: json.loads(x)['coordinates'][1])
-    df.drop(['.geo', 'system:band_names', 'system:bands', 'version'], axis=1, inplace=True)
+    
+    columns_to_drop = ['.geo', 'system:band_names', 'system:bands', 'version']
+    for col in columns_to_drop:
+        if col in df.columns:
+            df.drop(col, axis=1, inplace=True)
+        
 
     # Convert types
     df.ET_24h = df.ET_24h.astype(float)

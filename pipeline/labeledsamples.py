@@ -163,12 +163,13 @@ def generateMonthlySampleLocations(aoi=None, aoi_label='', num_samples=10, start
 
     if excludeNonCrop: # return sample locations which are not masked
                       #  masked pixels have value of 0 in GEE
-        mask = cropmasks.createGFSADmask(aoi)
+        # mask = cropmasks.createGFSADmask(aoi)
         #feats = ee.FeatureCollection(sample_locations_tmp.coordinates().map(
         #                lambda p: ee.Feature(ee.Geometry.Point(p), {})
         #            ))
-        sample_locations_tmp = mask.reduceRegions(sample_locations_tmp, ee.Reducer.first(), 30) \
-                        .filter(ee.Filter.eq('first', 1))
+        # sample_locations_tmp = mask.reduceRegions(sample_locations_tmp, ee.Reducer.first(), 30) \
+        #                 .filter(ee.Filter.eq('first', 1))
+        pass
 
     # randomize
     sample_locations_tmp = sample_locations_tmp \

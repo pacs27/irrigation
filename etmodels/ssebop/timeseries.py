@@ -94,6 +94,7 @@ class TimeSeries:
             solar_radiation = point_value.get("solar_radiation")
             wind_speed = point_value.get("wind_speed")
             rain = point_value.get("rain")
+            land_surface_temperature = point_value.get("lst")
 
             etFeature = ee.Feature(
                 self.test_point.centroid(),
@@ -104,6 +105,7 @@ class TimeSeries:
                     "ET_24h": et_point,
                     "ET0_24h": et0,
                     "ET_fraction": fraction,
+                    "LandT_G": land_surface_temperature,
                     "NDVI": ndvi_point,
                     "TMAX": tmax_point,
                     "TMIN": tmin_point,

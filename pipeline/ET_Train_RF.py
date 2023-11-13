@@ -72,7 +72,7 @@ def fit(datafile=None,
     filter_rain = not nofilterrain
     save_model = not nosavemodel
 
-    infilename = inpath + '/features.pkl'
+    infilename = inpath + 'features.pkl'
     if not os.path.exists(infilename):
         print('Missing input datafile')
 

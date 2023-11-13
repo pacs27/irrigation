@@ -31,9 +31,9 @@ import os
 import glob
 
 import ee
-service_account = 'data-access@second-impact-342800.iam.gserviceaccount.com'
-creds = ee.ServiceAccountCredentials(service_account, '../second-impact-342800-51af159903ca.json')
-ee.Initialize(creds)
+# service_account = 'data-access@second-impact-342800.iam.gserviceaccount.com'
+# creds = ee.ServiceAccountCredentials(service_account, '../second-impact-342800-51af159903ca.json')
+ee.Initialize()
 
 # custom libraries
 import ET_EDA as eda

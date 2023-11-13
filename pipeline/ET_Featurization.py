@@ -112,7 +112,10 @@ def generateFeatures(datafile=None,
     df_features = df_features.dropna(subset=['type'])
 
     # Cumulative precipitation over prior X days
-    df_features['sum_precip_priorX'] = df_features.precip.apply(lambda x: sum([float(y) for y in x.strip('][').split(', ')][:3]))
+    if df_features.precip.dtype == "float64":
+        df_features['sum_precip_priorX'] = df_features.precip
+    else:
+        df_features['sum_precip_priorX'] = df_features.precip.apply(lambda x: sum([float(y) for y in x.strip('][').split(', ')][:3]))
 
 
     # ##### Number of days since last precipitation
@@ -124,8 +127,10 @@ def generateFeatures(datafile=None,
         y3 = y2.item() if len(y2)>0 else 9
         return y3 + 1
 
-    df_features['last_rain'] = df_features.precip.apply(findFirstPrecip)
-
+    if df_features.precip.dtype == "float64":
+        df_features['last_rain'] = df_features.precip.apply(findFirstPrecip)
+    else:
+        df_features['last_rain'] = df_features.precip.apply(findFirstPrecip)
     # ##### Remove low NDVI
     if filter_ndvi:
         out_stats['num_ndvi_filtered_out'] = int((df_features.NDVI >= 0.2).sum())
