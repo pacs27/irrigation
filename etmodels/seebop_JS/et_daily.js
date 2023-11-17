@@ -418,7 +418,8 @@ exports.make_calculate_et0 = function (
     rso_type,
     debug,
     model,
-    need_to_clip // TODO: I have calculated that for the ECMWF model and approximately for more than 300 points, it is better if we dontnot clip
+    need_to_clip, // TODO: I have calculated that for the ECMWF model and approximately for more than 300 points, it is better if we dontnot clip
+    add_weather_data
 ) {
     if (method == "undefined") {
         method = "asce"
@@ -427,7 +428,11 @@ exports.make_calculate_et0 = function (
     if (debug == "undefined") {
         debug = False
     }
+    if (add_weather_data == "undefined") {
+        add_weather_data = true
+    }
 
+    var rso = undefined // TODO: ??
 
 
     if (model == "undefined") {
@@ -466,39 +471,22 @@ exports.make_calculate_et0 = function (
         )
     }
 
-    function _calculate_daily_et0(
-        zw,
-        elev,
-        lat,
-        method,
-        rso_type,
-        rso,
-        add_weather_data
-    ) {
-        if (add_weather_data == "undefined") {
-            add_weather_data = false
-        }
-        if (zw == undefined) {
-            zw = ee.Number(2)
-        }
-        if (elev == undefined) {
-            elev = ee.Image(
-                "projects/openet/assets/meteorology/era5land/ancillary/elevation"
-            )
-        }
+   
+    var elev = ee.Image("projects/openet/assets/meteorology/era5land/ancillary/elevation")
+    
+    var lat = ee.Image(
+        "projects/openet/assets/meteorology/era5land/ancillary/latitude"
+    )
 
-        if (lat == undefined) {
-            lat = ee.Image(
-                "projects/openet/assets/meteorology/era5land/ancillary/latitude"
-            )
-        }
+    function _calculate_daily_et0(
+       
+    ) {
+       
         function _nasa_weather_data(
             start,
             end,
             start_date,
-            input_collection,
-            method
-
+            input_collection
         ) {
 
 
@@ -544,9 +532,7 @@ exports.make_calculate_et0 = function (
             start,
             end,
             start_date,
-            input_collection,
-            method
-
+            input_collection
         ) {
 
 
@@ -592,8 +578,7 @@ exports.make_calculate_et0 = function (
             start,
             end,
             start_date,
-            input_collection,
-            method
+            input_collection
         ) {
 
 
@@ -653,15 +638,8 @@ exports.make_calculate_et0 = function (
         }
 
 
-        function _calculate_daily_et(
-            day_off_set,
-            model,
-            zw,
-            elev,
-            lat,
-            doy,
-            method,
-            rso_type
+        function _calculate_et0(
+            day_off_set
         ) {
             var start = start_date.advance(day_off_set, "days")
             var end = start.advance(1, "days")
@@ -674,6 +652,7 @@ exports.make_calculate_et0 = function (
                     input_collection,
                     method
                 )
+                var zw = ee.Number(2)
             }
             else if (model == "GFS") {
                 weather_data = _gfs_weather_data(
@@ -683,6 +662,7 @@ exports.make_calculate_et0 = function (
                     input_collection,
                     method
                 )
+                var zw = ee.Number(10)
             }
             else if (model == "ECMWF") {
                 weather_data = _ecmwf_weather_data(
@@ -692,6 +672,7 @@ exports.make_calculate_et0 = function (
                     input_collection,
                     method
                 )
+                var zw = ee.Number(10)
             }
 
             var et_daily = _daily_et(
@@ -715,8 +696,8 @@ exports.make_calculate_et0 = function (
             var et_daily_image = et0_daily.addBands(etr_daily)
             if (add_weather_data) {
                 et_daily_image = et_daily_image.addBands(
-                    ee.Image([weather_data.tmax, weather_data.tmin, weather_data.actual_vapor_pressure, weather_data.solar_radiation, weather_data.wind_speed, weather_data.rain])
-                        .rename(["tmax", "tmin", "actual_vapor_pressure", "solar_radiation", "wind_speed", "rain"])
+                    ee.Image([weather_data.tmax, weather_data.tmin, weather_data.actual_vapor_pressure, weather_data.solar_radiation, weather_data.wind_speed, weather_data.rain, elev])
+                        .rename(["tmax", "tmin", "actual_vapor_pressure", "solar_radiation", "wind_speed", "rain", "elev"])
 
                 )
             }
@@ -745,14 +726,8 @@ exports.make_calculate_et0 = function (
         var daily_et0 = ee.ImageCollection(
             ee.List.sequence(0, number_of_days.subtract(1))
                 .map(function (day_off_set) {
-                    return _calculate_daily_et(
-                        day_off_set,
-                        model,
-                        zw,
-                        elev,
-                        lat,
-                        method,
-                        rso
+                    return _calculate_et0(
+                        day_off_set
                     )
                 })
         )
