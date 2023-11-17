@@ -438,7 +438,7 @@ exports.make_calculate_et0 = function (
     if (model == "undefined") {
         model = "NASA" // NASA, GFS, ECMWF
     }
-    
+
     var start_date = ee.Date(start_date)
     var end_date = ee.Date(end_date)
 
@@ -452,7 +452,7 @@ exports.make_calculate_et0 = function (
     else if (model == "ECMWF") {
         var collection_name = collection_name = "ECMWF/ERA5_LAND/HOURLY"
     }
-    
+
     if (need_to_clip) {
         var input_collection = (
             ee.ImageCollection(collection_name)
@@ -471,17 +471,17 @@ exports.make_calculate_et0 = function (
         )
     }
 
-   
+
     var elev = ee.Image("projects/openet/assets/meteorology/era5land/ancillary/elevation")
-    
+
     var lat = ee.Image(
         "projects/openet/assets/meteorology/era5land/ancillary/latitude"
     )
 
     function _calculate_daily_et0(
-       
+
     ) {
-       
+
         function _nasa_weather_data(
             start,
             end,
