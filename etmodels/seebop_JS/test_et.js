@@ -1,18 +1,5 @@
 var et_daily_file = require('users/franciscopuig/SSEBop/:et_daily');
 
-var geometry = ee.Geometry.Polygon(
-    [
-        [
-            [-4.59673559330618, 37.87785028383721],
-            [-4.59673559330618, 37.86490927780263],
-            [-4.579054471480008, 37.86490927780263],
-            [-4.579054471480008, 37.87785028383721],
-        ]
-    ],
-    null,
-    false
-)
-
 var study_region = geometry.bounds(1, "EPSG:4326")
 var start_date = "2023-01-03"
 var end_date = "2023-01-05"
@@ -21,7 +8,7 @@ var rso_type = undefined
 var debug = false
 var model = "ECMWF"
 var need_to_clip = true // if true, the output will be clipped to the study region
-
+var add_weather_date = true
 var et_daily = et_daily_file.make_calculate_et0(
     study_region,
     start_date,
@@ -30,7 +17,8 @@ var et_daily = et_daily_file.make_calculate_et0(
     rso_type,
     debug,
     model,
-    need_to_clip
+    need_to_clip,
+    add_weather_date
 );
 
 var et0_collection = et_daily.calculate_daily_et0()
