@@ -35,7 +35,7 @@ function et_fraction(lst, tmax, tcorr, dt) {
     return et_fraction.updateMask(et_fraction.lte(2.0)).clamp(0, 1.0).rename(['et_fraction'])
 }
 
-function dt(tmax, tmin, elev, doy, lat, rs, ea){
+function dt_calculate(tmax, tmin, elev, doy, lat, rs, ea){
     /*
     Temperature difference between hot/dry ground and cold/wet canopy
 
@@ -80,10 +80,6 @@ function dt(tmax, tmin, elev, doy, lat, rs, ea){
 
     if (lat==undefined){
         lat = ee.Image.pixelLonLat().select(['latitude'])
-    }
-    if (doy == undefined){
-        // TODO: attempt to read time_start from one of the images
-      
     }
        
 
@@ -230,3 +226,11 @@ function elr_adjust(temperature, elevation, radius){
 }
 
 
+exports.make_ssebop_model = function (){
+    return {
+        "et_fraction": et_fraction,
+        "dt_calculate": dt_calculate,
+        "lapse_adjust": lapse_adjust,
+        "elr_adjust": elr_adjust
+    }
+}

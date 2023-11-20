@@ -37,7 +37,8 @@ Map.centerObject(study_region, 12)
 // add heat palette
 Map.addLayer(et0_collection.select("et0"), { min: 0, max: 10, palette: heatPalette }, "et0")
 Map.addLayer(et0_collection.select("etr"), { min: 0, max: 10, palette: heatPalette }, "etr")
-
+// add all the other bands and hide it
+Map.addLayer(et0_collection ,{},"all_bands", false)
 
 
 
