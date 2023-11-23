@@ -1,6 +1,7 @@
 var ssebop_collection_file = require('users/franciscopuig/SSEBop/:ssebop_collection');
 var ssebop_collection = ssebop_collection_file.make_ssebop_collection()
 
+
 // -=-=-=-=-=-=-=-=-=-= INPUT PARAMS -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 var study_region = geometry.bounds(1, "EPSG:4326")
 var start_date = "2023-01-01"
@@ -8,16 +9,23 @@ var end_date = "2023-10-28"
 var debug = true // IF TRUE THE MODEL RETURNS ALL THE BANDS, IF FALSE ONLY ET FRACTION AND ETo
 
 // -=-=-=-=-=-=-=-=-=-=-=-= CALCULATE ET AND ET FRACTION =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-var ssebop_coll = ssebop_collection(
+var ssebop = ssebop_collection(
     study_region,
     start_date,
     end_date,
     debug
 )
 
-if (debug) {
-    print("ssebop_collection = ", ssebop_coll)
+var ssebop_coll = ssebop[0]
+var precip_feature_coll = ssebop[1]
 
+
+
+
+if (debug) {
+    print("ssebop_image_collection = ", ssebop_coll)
+    print("precip_feature_collection = ", precip_feature_coll)
+    
 }
 
 // -=-=-=-=-=-=-=-=-=-=-=-= DISPLAY THE COLLECTION =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
@@ -44,8 +52,3 @@ Map.addLayer(ssebop_coll.select("et"), { min: 0, max: 10, palette: etPalette }, 
 if (debug) {
     Map.addLayer(ssebop_coll, {}, "all_bands", false)
 }
-
-
-
-
-

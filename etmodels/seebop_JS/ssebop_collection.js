@@ -3,6 +3,9 @@ var et_daily_file = require('users/franciscopuig/SSEBop/:et_daily');
 var ssebop_model_file = require('users/franciscopuig/SSEBop/:ssebop_model');
 var landsat_utils_file = require('users/franciscopuig/SSEBop/:landsat_utils');
 
+var meteorology_file = require('users/franciscopuig/SSEBop/:meteorology');
+var meteorology = meteorology_file.make_meteorology()
+
 var landsat_utils = landsat_utils_file.make_landsat_utils();
 var ssebop_model = ssebop_model_file.make_ssebop_model();
 function filter_collection_list(start_date, end_date, collections) {
@@ -46,7 +49,7 @@ function ssebop_collection(
     end_date,
     debug
 ) {
-    if(debug == undefined){
+    if (debug == undefined) {
         debug = false
     }
 
@@ -72,7 +75,7 @@ function ssebop_collection(
     );
 
     var et0_weather_collection = reference_et_weather_daily.calculate_daily_et0()
-    
+
     // -=-=-=-=-=-=-=-=-=-=-=-=-=IMAGE COLLECTION-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= 
 
     function search_all_collections(collections) {
@@ -141,7 +144,7 @@ function ssebop_collection(
                 return landsat_utils.prepare_landsat_c2_sr(image, false)
             })
 
-        var ssebop_collection_value = ee.ImageCollection(
+        var ssebop_image_collection = ee.ImageCollection(
             input_collection_prepared.map(function (image) {
                 return compute_ssebop_image(
                     image,
@@ -149,7 +152,29 @@ function ssebop_collection(
                     debug
                 )
             }))
-        return ssebop_collection_value
+        var ssebop_feature_collection = ee.FeatureCollection(
+            ssebop_image_collection.map(function (image) {
+                var _image_date = ee.Date(image.get("system:time_start"))
+                // 6. Retrive precipitation for the last 10 days
+                var window_days_precip = 10
+                var precip_last_days = meteorology.retrieve_precipitation_last_days(
+                    _image_date,
+                    study_region,
+                    window_days_precip
+                )
+
+                return ee.Feature(study_region.centroid({ "maxError": 1 }), {
+                    "precip_last_days": precip_last_days,
+                }).set("system:time_start", _image_date.millis())
+               
+
+
+            }
+            )
+        )
+
+
+        return [ssebop_image_collection, ssebop_feature_collection]
     }
 
     return calculate()
@@ -165,7 +190,8 @@ function compute_ssebop_image(
     var _index = image.get("system:index")
     var _time_start = ee.Date(image.get("system:time_start"))
     var _time_start_next_day = _time_start.advance(1, "day")
-   
+
+
     var properties = {
         "system:id": _id,
         "system:index": _index,
@@ -196,17 +222,17 @@ function compute_ssebop_image(
 
     // 2. Get dt_value from daymet
 
-    var dt_value =  ee.ImageCollection("projects/earthengine-legacy/assets/projects/usgs-ssebop/dt/daymet_median_v6").filter(
+    var dt_value = ee.ImageCollection("projects/earthengine-legacy/assets/projects/usgs-ssebop/dt/daymet_median_v6").filter(
         ee.Filter.calendarRange(_doy, _doy, "day_of_year")
     )
-   
+
     var dt_img = ee.Image(dt_value.first())
     var dt_scale_factor = ee.Dictionary(
-        {"scale_factor": dt_img.get("scale_factor")}
-    ).combine({"scale_factor": "1.0"},false)
+        { "scale_factor": dt_img.get("scale_factor") }
+    ).combine({ "scale_factor": "1.0" }, false)
     var dt_img = dt_img.multiply(ee.Number.parse(dt_scale_factor.get("scale_factor")))
 
-    dt_value =  dt_img.rename("dt")
+    dt_value = dt_img.rename("dt")
 
     // 3. Calculate tcorr
     var tcorr = calculate_tcorr(
@@ -233,6 +259,9 @@ function compute_ssebop_image(
         etr, // NOTE: Can be et0 or etr
         properties
     )
+
+
+
     if (debug) {
         var all_bands = ee.Image(
             [
@@ -255,14 +284,15 @@ function compute_ssebop_image(
                 etr
 
             ]
-        )} else {
-            var all_bands = ee.Image(
-                [
-                    actual_et,
-                    et_fraction
-                ]
-            )
-        }
+        )
+    } else {
+        var all_bands = ee.Image(
+            [
+                actual_et,
+                et_fraction,
+            ]
+        )
+    }
 
     return all_bands
 
@@ -476,7 +506,7 @@ function calculate_tcorr(
         ndwi,
         qa_water_mask,
         crs
-        
+
     )
     var tcorr_img = ee.Image(tcorr_FANO).select(["tcorr"])
 
