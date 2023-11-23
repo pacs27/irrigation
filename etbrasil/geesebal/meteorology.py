@@ -194,8 +194,7 @@ def get_meteorology(image, scale=None):
 
     return out
 
-# NOTE: only change scale if you know what you're doing. 
-# Reducing the scale will increase the number of pixels in the image and the processing time
+
 def retrievePrecip(metadate, location, window_days=10, scale=None):
     startDate = ee.Date(metadate).advance(-window_days, 'day')
     endDate = ee.Date(metadate).advance(-1, 'day')

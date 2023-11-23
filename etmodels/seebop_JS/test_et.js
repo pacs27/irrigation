@@ -8,7 +8,7 @@ var rso_type = undefined
 var debug = false
 var model = "ECMWF"
 var need_to_clip = true // if true, the output will be clipped to the study region
-var add_weather_date = true
+var add_weather_data = true
 var et_daily = et_daily_file.make_calculate_et0(
     study_region,
     start_date,
@@ -18,7 +18,7 @@ var et_daily = et_daily_file.make_calculate_et0(
     debug,
     model,
     need_to_clip,
-    add_weather_date
+    add_weather_data
 );
 
 var et0_collection = et_daily.calculate_daily_et0()

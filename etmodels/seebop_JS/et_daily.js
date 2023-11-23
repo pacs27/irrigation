@@ -701,7 +701,8 @@ exports.make_calculate_et0 = function (
 
                 )
             }
-            et_daily_image = et_daily_image.set("system:time_start", start_date.millis())
+            et_daily_image = et_daily_image
+                .set("system:time_start", start.millis())
             return et_daily_image
 
         }

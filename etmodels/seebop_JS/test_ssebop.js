@@ -1,36 +1,49 @@
 var ssebop_collection_file = require('users/franciscopuig/SSEBop/:ssebop_collection');
 var ssebop_collection = ssebop_collection_file.make_ssebop_collection()
 
+// -=-=-=-=-=-=-=-=-=-= INPUT PARAMS -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 var study_region = geometry.bounds(1, "EPSG:4326")
-var start_date = "2023-01-03"
-var end_date = "2023-01-05"
-// var method = "asce"
-// var rso_type = undefined
-// var debug = false
-// var model = "ECMWF"
-// var need_to_clip = true // if true, the output will be clipped to the study region
-// var add_weather_date = true
+var start_date = "2023-01-01"
+var end_date = "2023-10-28"
+var debug = true // IF TRUE THE MODEL RETURNS ALL THE BANDS, IF FALSE ONLY ET FRACTION AND ETo
 
-var ssebop_coll =  ssebop_collection(
+// -=-=-=-=-=-=-=-=-=-=-=-= CALCULATE ET AND ET FRACTION =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+var ssebop_coll = ssebop_collection(
     study_region,
     start_date,
-    end_date
+    end_date,
+    debug
 )
 
-print("ssebop_collection = ", ssebop_coll)
+if (debug) {
+    print("ssebop_collection = ", ssebop_coll)
 
+}
 
-// // heat palette
-// var heatPalette = [
-//     'FFFFFF', 'CE7E45', 'DF923D', 'F1B555', 'FCD163', '99B718', '74A901',
-//     '66A000', '529400', '3E8601', '207401', '056201', '004C00', '023B01',
-//     '012E01', '011D01', '011301'
-// ];
-// // show in map band et0 and etr
-// Map.centerObject(study_region, 12)
-// // add heat palette
-// Map.addLayer(et0_collection.select("et0"), { min: 0, max: 10, palette: heatPalette }, "et0")
-// Map.addLayer(et0_collection.select("etr"), { min: 0, max: 10, palette: heatPalette }, "etr")
+// -=-=-=-=-=-=-=-=-=-=-=-= DISPLAY THE COLLECTION =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+var etPalette = [
+    "DEC29B",
+    "E6CDA1",
+    "EDD9A6",
+    "F5E4A9",
+    "FFF4AD",
+    "C3E683",
+    "6BCC5C",
+    "3BB369",
+    "20998F",
+    "1C8691",
+    "16678A",
+    "114982",
+    "0B2C7A",
+]
+Map.centerObject(study_region, 12)
+
+Map.addLayer(ssebop_coll.select("et_fraction"), { min: 0, max: 1, palette: etPalette }, "ET-fraction")
+Map.addLayer(ssebop_coll.select("et"), { min: 0, max: 10, palette: etPalette }, "ET")
+
+if (debug) {
+    Map.addLayer(ssebop_coll, {}, "all_bands", false)
+}
 
 
 

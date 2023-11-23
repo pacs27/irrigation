@@ -145,9 +145,7 @@ function prepare_landsat_c2_sr(landsat_image, c2_lst_correct) {
         "QA_PIXEL",
         "QA_RADSAT",
     ]
-
-    var prep_image = (
-        landsat_image.select(input_bands.get(spacecraft_id), output_bands)
+    var prep_image = landsat_image.select(input_bands.get(spacecraft_id), output_bands)
             .multiply(
                 [
                     0.0000275,
@@ -162,8 +160,9 @@ function prepare_landsat_c2_sr(landsat_image, c2_lst_correct) {
                 ]
             )
             .add([-0.2, -0.2, -0.2, -0.2, -0.2, -0.2, 149.0, 0, 0])
-    )
+            .set(landsat_image.toDictionary())
 
+    
     var cloud_mask = landsat_c2_sr_cloud_mask(landsat_image)
 
 
@@ -185,7 +184,7 @@ function prepare_landsat_c2_sr(landsat_image, c2_lst_correct) {
             landsat_c2_qa_water_mask(prep_image),
         ]
     )
-
+    
     // Apply the cloud mask and add properties
     var input_image = input_image.updateMask(cloud_mask).set(
         {

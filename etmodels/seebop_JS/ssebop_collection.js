@@ -43,39 +43,36 @@ function filter_collection_list(start_date, end_date, collections) {
 function ssebop_collection(
     study_region,
     start_date,
-    end_date
+    end_date,
+    debug
 ) {
+    if(debug == undefined){
+        debug = false
+    }
 
     // -=-=-=-=-=-=-=-=-=-WEATHER DATA AND  ET0-=-=-=-=-=-=-=-=-=-=-=-=-=
     var method = "asce"
     var rso_type = undefined
-    var debug = false
     var model = "ECMWF"
-    var need_to_clip = true
-    var add_weather_date = true
+    var need_to_clip = false
     var cloud_cover_max = 30
+    var add_weather_data = true
 
-    var reference_et_weather_daily = et_daily_file.make_calculate_et0(study_region,
+
+    var reference_et_weather_daily = et_daily_file.make_calculate_et0(
+        study_region,
         start_date,
         end_date,
         method,
         rso_type,
         debug,
         model,
-        need_to_clip
+        need_to_clip,
+        add_weather_data
     );
 
     var et0_weather_collection = reference_et_weather_daily.calculate_daily_et0()
-    var elev = et0_weather_collection.select("elev")
-    var tmax = et0_weather_collection.select("tmax")
-    var tmin = et0_weather_collection.select("tmin")
-    var actual_vapor_pressure = et0_weather_collection.select("actual_vapor_pressure")
-    var solar_radiation = et0_weather_collection.select("solar_radiation")
-    var wind_speed = et0_weather_collection.select("wind_speed")
-    var rain = et0_weather_collection.select("rain")
-    var et0 = et0_weather_collection.select("et0")
-    var etr = et0_weather_collection.select("etr")
-
+    
     // -=-=-=-=-=-=-=-=-=-=-=-=-=IMAGE COLLECTION-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= 
 
     function search_all_collections(collections) {
@@ -87,6 +84,10 @@ function ssebop_collection(
                 .filterMetadata('CLOUD_COVER_LAND', 'less_than',
                     cloud_cover_max)
                 .filterMetadata('CLOUD_COVER_LAND', 'greater_than', -0.5)
+                .map(function (image) {
+                    return image.clip(study_region)
+                }
+                )
 
             // check for bad images
             // if LT05 in collection[i]
@@ -125,26 +126,27 @@ function ssebop_collection(
     function calculate() {
 
         var input_collection = search_all_collections(collections)
-        print("input_collection = ", input_collection)
 
+        // var input_collection_image = input_collection.first()
+
+        // var input_collection_prepared_image = landsat_utils.prepare_landsat_c2_sr(input_collection_image, false)
+
+        // var et_seebop = compute_ssebop_image(
+        //     input_collection_prepared_image,
+        //     et0_weather_collection
+        // )
+        // return et_seebop
         var input_collection_prepared = input_collection.map(
             function (image) {
                 return landsat_utils.prepare_landsat_c2_sr(image, false)
             })
-        print("input_collection_prepared = ", input_collection_prepared)
+
         var ssebop_collection_value = ee.ImageCollection(
             input_collection_prepared.map(function (image) {
                 return compute_ssebop_image(
                     image,
-                    elev,
-                    tmax,
-                    tmin,
-                    actual_vapor_pressure,
-                    solar_radiation,
-                    wind_speed,
-                    rain,
-                    et0,
-                    etr
+                    et0_weather_collection,
+                    debug
                 )
             }))
         return ssebop_collection_value
@@ -156,45 +158,55 @@ function ssebop_collection(
 
 function compute_ssebop_image(
     image,
-    elev,
-    tmax,
-    tmin,
-    actual_vapor_pressure,
-    solar_radiation,
-    wind_speed,
-    rain,
-    et0,
-    etr
+    et0_weather_collection,
+    debug
 ) {
     var _id = image.get("system:id")
     var _index = image.get("system:index")
-    var _time_start = image.get("system:time_start")
+    var _time_start = ee.Date(image.get("system:time_start"))
+    var _time_start_next_day = _time_start.advance(1, "day")
+   
     var properties = {
         "system:id": _id,
         "system:index": _index,
         "system:time_start": _time_start
     }
+    var today_et0_and_weather = et0_weather_collection.filterDate(_time_start, _time_start.advance(1, "day")).first()
+
+    var elev = today_et0_and_weather.select("elev")
+    var tmax = today_et0_and_weather.select("tmax").add(273.15)
+    var tmin = today_et0_and_weather.select("tmin").add(273.15)
+    var actual_vapor_pressure = today_et0_and_weather.select("actual_vapor_pressure")
+    var solar_radiation = today_et0_and_weather.select("solar_radiation")
+    var wind_speed = today_et0_and_weather.select("wind_speed")
+    var rain = today_et0_and_weather.select("rain")
+    var et0 = today_et0_and_weather.select("et0")
+    var etr = today_et0_and_weather.select("etr")
+
     var crs = image.projection().crs()
 
     var _date = ee.Date(_time_start)
     var _doy = ee.Number(_date.getRelative('day', 'year')).add(1).int()
-    var _lat = ee.Number(image.get("pixelLonLat").get("latitude")) // TODO: CHECK this
+    var _lat = ee.Image.pixelLonLat().select(['latitude']) // TODO: CHECK this
     // 1. Get image bands
     var lst = image.select("lst")
     var ndvi = image.select("ndvi")
     var ndwi = image.select("ndwi")
     var qa_water_mask = image.select("qa_water")
 
-    // 2. Calculate dt_value
-    var dt_value = calculate_dt(
-        tmax,
-        tmin,
-        elev,
-        _doy,
-        _lat,
-        solar_radiation,
-        actual_vapor_pressure
+    // 2. Get dt_value from daymet
+
+    var dt_value =  ee.ImageCollection("projects/earthengine-legacy/assets/projects/usgs-ssebop/dt/daymet_median_v6").filter(
+        ee.Filter.calendarRange(_doy, _doy, "day_of_year")
     )
+   
+    var dt_img = ee.Image(dt_value.first())
+    var dt_scale_factor = ee.Dictionary(
+        {"scale_factor": dt_img.get("scale_factor")}
+    ).combine({"scale_factor": "1.0"},false)
+    var dt_img = dt_img.multiply(ee.Number.parse(dt_scale_factor.get("scale_factor")))
+
+    dt_value =  dt_img.rename("dt")
 
     // 3. Calculate tcorr
     var tcorr = calculate_tcorr(
@@ -218,22 +230,39 @@ function compute_ssebop_image(
     // 5. Calculate actual_et
     var actual_et = calculate_actual_et(
         et_fraction,
-        et0,
+        etr, // NOTE: Can be et0 or etr
         properties
     )
+    if (debug) {
+        var all_bands = ee.Image(
+            [
+                lst,
+                ndvi,
+                ndwi,
+                qa_water_mask,
+                dt_value,
+                tcorr,
+                et_fraction,
+                actual_et,
+                elev,
+                tmax,
+                tmin,
+                actual_vapor_pressure,
+                solar_radiation,
+                wind_speed,
+                rain,
+                et0,
+                etr
 
-    var all_bands = ee.Image(
-        [
-            lst,
-            ndvi,
-            ndwi,
-            qa_water_mask,
-            dt_value,
-            tcorr,
-            et_fraction,
-            actual_et
-        ]
-    )
+            ]
+        )} else {
+            var all_bands = ee.Image(
+                [
+                    actual_et,
+                    et_fraction
+                ]
+            )
+        }
 
     return all_bands
 
@@ -257,26 +286,6 @@ function calculate_et_fraction(lst, tmax, tcorr, dta) {
 }
 
 
-// TODO: This is not necessary
-function calculate_dt(
-    tmax,
-    tmin,
-    elev,
-    doy,
-    lat,
-    rs,
-    ea
-) {
-    /*
-    Temperature difference between hot/dry ground and cold/wet canopy
-    */
-    var dta_value = ssebop_model.dt_calculate(tmax, tmin, elev, doy, lat, rs, ea)
-
-
-    return dta_value.rename("dt")
-}
-
-
 function tcorr_FANO_calculate(
     lst,
     ndvi,
@@ -293,6 +302,9 @@ function tcorr_FANO_calculate(
     FANO: Forcing And Normalizing Operation
  
     */
+    var _index = ee.Image(lst).get("system:index")
+    var _time_start = ee.Image(lst).get("system:time_start")
+    ee.Image(lst).get("system:time_start")
     var coarse_transform = [5000, 0, 15, 0, -5000, 15]
     var coarse_transform100 = [100000, 0, 15, 0, -100000, 15]
     var dt_coeff = 0.125
@@ -310,7 +322,7 @@ function tcorr_FANO_calculate(
     qa_water_mask = ee.Image(qa_water_mask)
 
     //  setting NDVI to negative values where Landsat QA Pixel detects water.
-    ndvi = ndvi.where(qa_water_mask.eq(1).And(ndvi.gt(0)), ndvi.multiply(-1))
+    ndvi = ndvi.where(qa_water_mask.eq(1).and(ndvi.gt(0)), ndvi.multiply(-1))
 
     var watermask = ndwi.lt(ndwi_threshold)
     //  combining NDWI mask with QA Pixel watermask.
@@ -318,12 +330,12 @@ function tcorr_FANO_calculate(
     //  returns qa_water_mask layer masked by combined watermask to get a count of valid pixels
     var watermask_for_coarse = qa_water_mask.updateMask(watermask)
 
-    var watermask_coarse_count = watermask_for_coarse.reduceResolution(ee.Reducer.count(), False, m_pixels)
+    var watermask_coarse_count = watermask_for_coarse.reduceResolution(ee.Reducer.count(), false, m_pixels)
         .reproject(crs, coarse_transform)
         .updateMask(1)
         .select([0], ["count"])
 
-    var total_pixels_count = ndvi.reduceResolution(ee.Reducer.count(), False, m_pixels)
+    var total_pixels_count = ndvi.reduceResolution(ee.Reducer.count(), false, m_pixels)
         .reproject(crs, coarse_transform)
         .updateMask(1)
         .select([0], ["count"])
@@ -340,34 +352,34 @@ function tcorr_FANO_calculate(
     var wet_region_mask_5km = percentage_bad.lte(pct_value)
 
     var ndvi_avg_masked = ndvi.updateMask(watermask)
-        .reduceResolution(ee.Reducer.mean(), False, m_pixels)
-        .reproject(self.crs, coarse_transform)
+        .reduceResolution(ee.Reducer.mean(), false, m_pixels)
+        .reproject(crs, coarse_transform)
 
     var ndvi_avg_masked100 = ndvi.updateMask(watermask)
-        .reduceResolution(ee.Reducer.mean(), True, m_pixels)
-        .reproject(self.crs, coarse_transform100)
+        .reduceResolution(ee.Reducer.mean(), true, m_pixels)
+        .reproject(crs, coarse_transform100)
 
-    var ndvi_avg_unmasked = ndvi.reduceResolution(ee.Reducer.mean(), False, m_pixels)
-        .reproject(self.crs, coarse_transform)
+    var ndvi_avg_unmasked = ndvi.reduceResolution(ee.Reducer.mean(), false, m_pixels)
+        .reproject(crs, coarse_transform)
         .updateMask(1)
 
     var lst_avg_masked = lst.updateMask(watermask)
-        .reduceResolution(ee.Reducer.mean(), False, m_pixels)
-        .reproject(self.crs, coarse_transform)
+        .reduceResolution(ee.Reducer.mean(), false, m_pixels)
+        .reproject(crs, coarse_transform)
 
     var lst_avg_masked100 = lst.updateMask(watermask)
-        .reduceResolution(ee.Reducer.mean(), True, m_pixels)
-        .reproject(self.crs, coarse_transform100)
+        .reduceResolution(ee.Reducer.mean(), true, m_pixels)
+        .reproject(crs, coarse_transform100)
 
-    var lst_avg_unmasked = lst.reduceResolution(ee.Reducer.mean(), False, m_pixels)
-        .reproject(self.crs, coarse_transform)
+    var lst_avg_unmasked = lst.reduceResolution(ee.Reducer.mean(), false, m_pixels)
+        .reproject(crs, coarse_transform)
         .updateMask(1)
 
 
     // Here we don't need the reproject.reduce.reproject sandwich bc these are coarse data-sets
-    var dt_avg = dt.reproject(self.crs, coarse_transform)
-    var dt_avg100 = dt.reproject(self.crs, coarse_transform100).updateMask(1)
-    var tmax_avg = tmax.reproject(self.crs, coarse_transform)
+    var dt_avg = dt.reproject(crs, coarse_transform)
+    var dt_avg100 = dt.reproject(crs, coarse_transform100).updateMask(1)
+    var tmax_avg = tmax.reproject(crs, coarse_transform)
 
     // FANO expression as a function of dT, calculated at the coarse resolution(s)
     var Tc_warm = lst_avg_masked.expression("(lst - (dt_coeff * dt * (ndvi_threshold - ndvi) * 10))",
@@ -397,7 +409,7 @@ function tcorr_FANO_calculate(
     //  In places where there is too much land covered by water 10% or greater,
     //    use a FANO adjusted Tc_warm from a coarser resolution (100km) that ignored masked water pixels.
     var Tc_cold = lst_avg_unmasked.where(
-        (ndvi_avg_masked.gte(0).And(ndvi_avg_masked.lte(high_ndvi_threshold))),
+        (ndvi_avg_masked.gte(0).and(ndvi_avg_masked.lte(high_ndvi_threshold))),
         Tc_warm
     )
         .where(ndvi_avg_masked.gt(high_ndvi_threshold), lst_avg_masked)
@@ -412,8 +424,8 @@ function tcorr_FANO_calculate(
 
     return c_factor_bilinear.rename(["tcorr"]).set(
         {
-            "system:index": self._index,
-            "system:time_start": self._time_start,
+            "system:index": _index,
+            "system:time_start": _time_start,
             "tmax_source": tmax.get("tmax_source"),
             "tmax_version": tmax.get("tmax_version")
         }
@@ -464,6 +476,7 @@ function calculate_tcorr(
         ndwi,
         qa_water_mask,
         crs
+        
     )
     var tcorr_img = ee.Image(tcorr_FANO).select(["tcorr"])
 

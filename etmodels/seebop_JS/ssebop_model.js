@@ -84,18 +84,18 @@ function dt_calculate(tmax, tmin, elev, doy, lat, rs, ea){
        
 
     // Convert latitude to radians
-    var phi = lat.multiply(math.pi / 180)
+    var phi = lat.multiply(Math.PI / 180)
 
     // Make a DOY image from the DOY number
     doy = tmax.multiply(0).add(doy)
 
     // Extraterrestrial radiation (Ra) (FAO56 Eqns 24, 25, 23, 21)
-    var delta = doy.multiply(2 * math.pi / 365).subtract(1.39).sin().multiply(0.409)
+    var delta = doy.multiply(2 * Math.PI / 365).subtract(1.39).sin().multiply(0.409)
     var ws = phi.tan().multiply(-1).multiply(delta.tan()).acos()
-    var dr = doy.multiply(2 * math.pi / 365).cos().multiply(0.033).add(1)
+    var dr = doy.multiply(2 * Math.PI / 365).cos().multiply(0.033).add(1)
     var ra =  ws.multiply(phi.sin()).multiply(delta.sin())
         .add(phi.cos().multiply(delta.cos()).multiply(ws.sin()))
-        .multiply(dr).multiply((1367.0 / math.pi) * 0.0820)
+        .multiply(dr).multiply((1367.0 / Math.PI) * 0.0820)
     
 
     // Simplified clear sky solar formulation (Rso) [MJ m-2 d-1] (Eqn 37)
