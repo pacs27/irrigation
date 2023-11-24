@@ -16,15 +16,13 @@ var ssebop = ssebop_collection(
     debug
 )
 
-var ssebop_coll = ssebop[0]
-var precip_feature_coll = ssebop[1]
-
-
+var ssebop_image_collection = ssebop[0]
+var precip_feature_collection  = ssebop[1]
 
 
 if (debug) {
-    print("ssebop_image_collection = ", ssebop_coll)
-    print("precip_feature_collection = ", precip_feature_coll)
+    print("ssebop_image_collection = ", ssebop_image_collection)
+    print("precip_feature_collection = ", precip_feature_collection)
     
 }
 
@@ -46,9 +44,9 @@ var etPalette = [
 ]
 Map.centerObject(study_region, 12)
 
-Map.addLayer(ssebop_coll.select("et_fraction"), { min: 0, max: 1, palette: etPalette }, "ET-fraction")
-Map.addLayer(ssebop_coll.select("et"), { min: 0, max: 10, palette: etPalette }, "ET")
+Map.addLayer(ssebop_image_collection.select("et_fraction"), { min: 0, max: 1, palette: etPalette }, "ET-fraction")
+Map.addLayer(ssebop_image_collection.select("et"), { min: 0, max: 10, palette: etPalette }, "ET")
 
 if (debug) {
-    Map.addLayer(ssebop_coll, {}, "all_bands", false)
+    Map.addLayer(ssebop_image_collection, {}, "all_bands", false)
 }
