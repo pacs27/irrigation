@@ -27,15 +27,19 @@ function et_fraction(lst, tmax, tcorr, dt) {
     Clamping function assumes this is an alfalfa fraction.
     */
 
+    // var et_fraction = lst.expression(
+    //     '(lst * (-1) + tmax * tcorr + dt) / dt',
+    //     { 'tmax': tmax, 'dt': dt, 'lst': lst, 'tcorr': tcorr }
+    // )
     var et_fraction = lst.expression(
-        '(lst * (-1) + tmax * tcorr + dt) / dt',
-        { 'tmax': tmax, 'dt': dt, 'lst': lst, 'tcorr': tcorr }
+        '1 - (1/dt * (lst - (c*tmax)))',
+        { 'tmax': tmax, 'dt': dt, 'lst': lst, 'c': tcorr }
     )
 
     return et_fraction.updateMask(et_fraction.lte(2.0)).clamp(0, 1.0).rename(['et_fraction'])
 }
 
-function dt_calculate(tmax, tmin, elev, doy, lat, rs, ea){
+function dt_calculate(tmax, tmin, elev, doy, lat, rs, ea) {
     /*
     Temperature difference between hot/dry ground and cold/wet canopy
 
@@ -78,10 +82,10 @@ function dt_calculate(tmax, tmin, elev, doy, lat, rs, ea){
 
     */
 
-    if (lat==undefined){
+    if (lat == undefined) {
         lat = ee.Image.pixelLonLat().select(['latitude'])
     }
-       
+
 
     // Convert latitude to radians
     var phi = lat.multiply(Math.PI / 180)
@@ -93,22 +97,22 @@ function dt_calculate(tmax, tmin, elev, doy, lat, rs, ea){
     var delta = doy.multiply(2 * Math.PI / 365).subtract(1.39).sin().multiply(0.409)
     var ws = phi.tan().multiply(-1).multiply(delta.tan()).acos()
     var dr = doy.multiply(2 * Math.PI / 365).cos().multiply(0.033).add(1)
-    var ra =  ws.multiply(phi.sin()).multiply(delta.sin())
+    var ra = ws.multiply(phi.sin()).multiply(delta.sin())
         .add(phi.cos().multiply(delta.cos()).multiply(ws.sin()))
         .multiply(dr).multiply((1367.0 / Math.PI) * 0.0820)
-    
+
 
     // Simplified clear sky solar formulation (Rso) [MJ m-2 d-1] (Eqn 37)
     var rso = elev.multiply(2E-5).add(0.75).multiply(ra)
 
     // Derive cloudiness fraction from Rs and Rso (see FAO56 Eqn 39)
     // Use Rso for Rs if not set
-    if( rs == undefined){
+    if (rs == undefined) {
         rs = rso.multiply(1)
         var fcd = 1
     }
-        
-    else{
+
+    else {
         var fcd = rs.divide(rso).max(0.3).min(1.0).multiply(1.35).subtract(0.35)
         // fcd = rs.divide(rso).clamp(0.3, 1).multiply(1.35).subtract(0.35)
     }
@@ -116,18 +120,18 @@ function dt_calculate(tmax, tmin, elev, doy, lat, rs, ea){
     var rns = rs.multiply(1 - 0.23)
 
     // Actual vapor pressure [kPa] (FAO56 Eqn 14)
-    if( ea == undefined){
+    if (ea == undefined) {
         ea = tmin.subtract(273.15).multiply(17.27)
             .divide(tmin.subtract(273.15).add(237.3))
             .exp().multiply(0.6108)
-        
+
     }
 
     // Net longwave radiation [MJ m-2 d-1] (FAO56 Eqn 39)
     var rnl = tmax.pow(4).add(tmin.pow(4))
         .multiply(ea.sqrt().multiply(-0.14).add(0.34))
         .multiply(4.901E-9 * 0.5).multiply(fcd)
-    
+
 
     // Net radiation [MJ m-2 d-1] (FAO56 Eqn 40)
     var rn = rns.subtract(rnl)
@@ -144,7 +148,7 @@ function dt_calculate(tmax, tmin, elev, doy, lat, rs, ea){
     return dt_value
 }
 
-function lapse_adjust(temperature, elev, lapse_threshold){
+function lapse_adjust(temperature, elev, lapse_threshold) {
     /*Elevation Lapse Rate (ELR) adjusted temperature [K]
 
     Parameters
@@ -161,20 +165,20 @@ function lapse_adjust(temperature, elev, lapse_threshold){
     ee.Image
 
     */
-    if (lapse_threshold == undefined){
+    if (lapse_threshold == undefined) {
         lapse_threshold = 1500
     }
 
     var elr_adjust = ee.Image(temperature).expression(
         '(temperature - (0.003 * (elev - threshold)))',
-        {'temperature': temperature, 'elev': elev, 'threshold': lapse_threshold}
+        { 'temperature': temperature, 'elev': elev, 'threshold': lapse_threshold }
     )
 
     return ee.Image(temperature).where(elev.gt(lapse_threshold), elr_adjust)
 }
 
 
-function elr_adjust(temperature, elevation, radius){
+function elr_adjust(temperature, elevation, radius) {
     /*
     Elevation Lapse Rate (ELR) adjusted temperature [K]
 
@@ -197,7 +201,7 @@ function elr_adjust(temperature, elevation, radius){
     adjusted for other temperature datasets.
 
     */
-    if (radius == undefined){
+    if (radius == undefined) {
         radius = 80
     }
     var tmax_img = ee.Image(temperature)
@@ -208,11 +212,11 @@ function elr_adjust(temperature, elevation, radius){
     var elev_tmax_fine = elev_img.reproject(tmax_projection)
 
     // Then generate the smoothed elevation image
-    var elev_tmax_smoothed =  elev_tmax_fine
-        .reduceNeighborhood(reducer=ee.Reducer.median(),
-                            kernel=ee.Kernel.square(radius=radius, units='pixels'))
-        .reproject(crs=tmax_projection)
-    
+    var elev_tmax_smoothed = elev_tmax_fine
+        .reduceNeighborhood(reducer = ee.Reducer.median(),
+            kernel = ee.Kernel.square(radius = radius, units = 'pixels'))
+        .reproject(crs = tmax_projection)
+
 
     // Final ELR mask: (DEM-(medDEM.add(100)).gt(0))
     var elev_diff = elev_tmax_fine.subtract(elev_tmax_smoothed.add(100))
@@ -226,7 +230,7 @@ function elr_adjust(temperature, elevation, radius){
 }
 
 
-exports.make_ssebop_model = function (){
+exports.make_ssebop_model = function () {
     return {
         "et_fraction": et_fraction,
         "dt_calculate": dt_calculate,

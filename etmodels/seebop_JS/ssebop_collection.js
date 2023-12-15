@@ -328,6 +328,12 @@ function tcorr_FANO_calculate(
     /*
     Compute the scene wide Tcorr for the current image adjusting tcorr
             temps based on NDVI thresholds to simulate true cold cfactor
+    
+    INFO:
+    FANO assumes an inverse linear relation between Ts and NDVI; Thus, landscapes that violated this assumption will be filtered
+    out before spatial averaging of Ts. This surfaces are generally water bodies and wetlands that have low NDVI and low Ts.
+    Thus, qa_water_mask is used to mask out water pixels from the NDVI layer.
+
  
     FANO: Forcing And Normalizing Operation
  
