@@ -1,3 +1,7 @@
+// This file is only for testing purposes. It is not used in the main code
+// It is an adaptation of the ssebop_collection.js file to work with a single image
+// check the ssebop_collection.js file for more information
+// Be careful because this file  could not be updated with the latest changes in the ssebop_collection.js file
 
 var et_daily_file = require('users/franciscopuig/SSEBop/:et_daily');
 var ssebop_model_file = require('users/franciscopuig/SSEBop/:ssebop_model');
@@ -43,15 +47,18 @@ function filter_collection_list(start_date, end_date, collections) {
     return collections
 }
 
-function ssebop_collection(
-    study_region,
-    start_date,
-    end_date,
+function ssebop_image(
+    image,
     debug
 ) {
     if (debug == undefined) {
         debug = false
     }
+    // get image date
+    var _image_date = ee.Date(image.get("system:time_start"))
+    var start_date = _image_date
+    var end_date = _image_date.advance(1, "day")
+    var study_region = image.geometry()
 
     // -=-=-=-=-=-=-=-=-=-WEATHER DATA AND  ET0-=-=-=-=-=-=-=-=-=-=-=-=-=
     var method = "asce"
@@ -61,15 +68,11 @@ function ssebop_collection(
     var cloud_cover_max = 30
     var add_weather_data = true
 
-    // NOTE: end date should end at 23:59:59 so we need to add one day     
-    var end_date_et0 = ee.Date(end_date).advance(1, "day")
-
-
 
     var reference_et_weather_daily = et_daily_file.make_calculate_et0(
         study_region,
         start_date,
-        end_date_et0,
+        end_date,
         method,
         rso_type,
         debug,
@@ -80,119 +83,35 @@ function ssebop_collection(
 
     var et0_weather_collection = reference_et_weather_daily.calculate_daily_et0()
 
-    // -=-=-=-=-=-=-=-=-=-=-=-=-=IMAGE COLLECTION-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= 
+    print("et0_weather_collection", et0_weather_collection)
 
-    function search_all_collections(collections) {
-        var all_collections;
-        for (var i = 0; i < collections.length; i++) {
-            var input_collection = ee.ImageCollection(collections[i])
-                .filterBounds(study_region)
-                .filterDate(start_date, end_date)
-                .filterMetadata('CLOUD_COVER_LAND', 'less_than',
-                    cloud_cover_max)
-                .filterMetadata('CLOUD_COVER_LAND', 'greater_than', -0.5)
-                .map(function (image) {
-                    return image.clip(study_region)
-                }
-                )
 
-            // check for bad images
-            // if LT05 in collection[i]
-            if (collections[i] == "LANDSAT/LT05/C02/T1_L2") {
-                input_collection = input_collection.filter(ee.Filter.lt(
-                    'system:time_start', ee.Date('2011-12-31').millis()))
-            } else if (collections[i] == "LANDSAT/LE07/C02/T1_L2") {
-                input_collection = input_collection.filter(ee.Filter.lt(
-                    'system:time_start', ee.Date('2022-01-01').millis()))
-            } else if (collections[i] == "LANDSAT/LC08/C02/T1_L2") {
-                input_collection = input_collection.filter(ee.Filter.gt(
-                    'system:time_start', ee.Date('2013-04-01').millis()))
-            } else if (collections[i] == "LANDSAT/LC09/C02/T1_L2") {
-                input_collection = input_collection.filter(ee.Filter.gt(
-                    'system:time_start', ee.Date('2022-01-01').millis()))
-            }
-            if (all_collections == undefined) {
-                all_collections = input_collection
-            } else {
-                all_collections = all_collections.merge(input_collection)
-            }
-
-        }
-        return all_collections
-    }
-
-    var collections_list = [
-        "LANDSAT/LC09/C02/T1_L2",
-        "LANDSAT/LC08/C02/T1_L2",
-        // "LANDSAT/LE07/C02/T1_L2", // NOTE: This collectios has a strike problem. It is better if we don't use it
-        "LANDSAT/LT05/C02/T1_L2",
-    ]
-
-    var collections = filter_collection_list(start_date, end_date, collections_list)
+        
 
     function calculate() {
 
-        var input_collection = search_all_collections(collections)
 
-        // ======= JUST FOR TESTING =========
         // var input_collection_image = input_collection.first()
 
-        // var _image_date = ee.Date(input_collection_image.get("system:time_start"))
-
-        // var input_collection_prepared_image = landsat_utils.prepare_landsat_c2_sr(input_collection_image, false)
-        // var window_days_precip = 10
-        // var precip_last_days = meteorology.retrieve_precipitation_last_days(
-        //     _image_date,
-        //     study_region,
-        //     window_days_precip
-        // )
-        // var et_seebop = compute_ssebop_image(
-        //     input_collection_prepared_image,
-        //     et0_weather_collection
-        // )
-        // var ssebop_feature_image = ee.Feature(study_region.centroid({ "maxError": 1 }), {
-        //     "precip_last_days": precip_last_days,
-        // }).set("system:time_start", _image_date.millis())
-
-        // return [et_seebop, ssebop_feature_image]
-
-        // ======= JUST FOR TESTING =========
-        var input_collection_prepared = input_collection.map(
-            function (image) {
-                return landsat_utils.prepare_landsat_c2_sr(image, false)
-            })
-
-        var ssebop_image_collection = ee.ImageCollection(
-            input_collection_prepared.map(function (image) {
-                return compute_ssebop_image(
-                    image,
-                    et0_weather_collection,
-                    debug
-                )
-            }))
-        var ssebop_feature_collection = ee.FeatureCollection(
-            ssebop_image_collection.map(function (image) {
-                var _image_date = ee.Date(image.get("system:time_start"))
-                // 6. Retrive precipitation for the last 10 days
-                var window_days_precip = 10
-                var precip_last_days = meteorology.retrieve_precipitation_last_days(
-                    _image_date,
-                    study_region,
-                    window_days_precip
-                )
-
-                return ee.Feature(study_region.centroid({ "maxError": 1 }), {
-                    "precip_last_days": precip_last_days,
-                }).set("system:time_start", _image_date.millis())
-               
-
-
-            }
-            )
+        var input_collection_prepared_image = landsat_utils.prepare_landsat_c2_sr(image, false)
+        var window_days_precip = 10
+        var precip_last_days = meteorology.retrieve_precipitation_last_days(
+            _image_date,
+            study_region,
+            window_days_precip
         )
 
+        var et_seebop = compute_ssebop_image(
+            input_collection_prepared_image,
+            et0_weather_collection,
+            debug
+        )
+        var ssebop_feature_image = ee.Feature(study_region.centroid({ "maxError": 1 }), {
+            "precip_last_days": precip_last_days,
+        }).set("system:time_start", _image_date.millis())
 
-        return [ssebop_image_collection, ssebop_feature_collection]
+        return [et_seebop, ssebop_feature_image]
+        
     }
 
     return calculate()
@@ -278,17 +197,6 @@ function compute_ssebop_image(
         properties
     )
 
-    // 6. Add precipitation last days 
-    var _image_date = ee.Date(_time_start)
-
-    var precip_values = precipitation.retrieve_prior_precipitation(
-                              _image_date.format('YYYY-MM-dd'),
-                              image)
-    var last_precip = precip_values[0]
-    var cum_precip = precip_values[1]
-
-    var mm = ee.Image(ee.Number.parse(_image_date.format('MM'))).rename('mm').toInt()
-
 
 
     if (debug) {
@@ -310,10 +218,7 @@ function compute_ssebop_image(
                 wind_speed,
                 rain,
                 et0,
-                etr,
-                last_precip,
-                cum_precip,
-                mm
+                etr
 
             ]
         )
@@ -322,10 +227,6 @@ function compute_ssebop_image(
             [
                 actual_et,
                 et_fraction,
-                ndvi,
-                last_precip,
-                cum_precip,
-                mm
             ]
         )
     }
@@ -558,6 +459,6 @@ function calculate_tcorr(
 
 
 
-exports.make_ssebop_collection = function () {
-    return ssebop_collection
+exports.make_ssebop_image = function () {
+    return ssebop_image
 }
